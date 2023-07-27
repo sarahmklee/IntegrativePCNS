@@ -16,40 +16,6 @@ library(ggsci)
 library(Seurat)
 ```
 
-# Load data
-```{r}
-load("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoData/Processed_Combined/ClusterAnnotated_RPCAintegrated_FullDataset_SeuratObj.rdata")
-```
-
-```{r}
-full.integrated_v2@meta.data$cluster_name <- full.integrated_v2@active.ident
-```
-
-```{r}
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "Normal"] <- "Non-Tumor"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS1"] <- "Other glioma"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS18"] <- "Glioneuronal/Neuronal"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS3"] <- "Ependymoma"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS5"] <- "Glioneuronal/Neuronal"
-```
-
-```{r}
-# New sample name
-full.integrated_v2@meta.data$sample_name2 <- full.integrated_v2@meta.data$sample_name
-
-full.integrated_v2@meta.data$sample_name2[full.integrated_v2@meta.data$sample_name2 %in% "PCNS32"] <- "Normal"
-```
-
-```{r}
-full.integrated_v2@meta.data$tissue <- ifelse(full.integrated_v2@meta.data$Tumor_Categories %in% "Non-Tumor", "Non-Tumor", "Tumor")
-
-table(full.integrated_v2@meta.data$tissue)
-```
-
-```{r}
-meta_fin <- read.csv("~/OneDrive - Dartmouth College/PCNS/snRNAseq/SampleInformation/FINAL_PCNS_MetaData_052022.csv")
-```
-
 ```{r}
 # Load markers
 stem_genes <- read.csv("~/OneDrive - Dartmouth College/PCNS/snRNAseq/Markers/Tirosh_etal_2016_StemGenes.csv")
@@ -96,10 +62,6 @@ plot <- ggplot(scores_merged, aes(x = reorder(SampleName_FINAL, Stem_Score1, FUN
         legend.title = element_text(size = 10, color = "black", face = "bold"))
 plot
 
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoFigures/FullVireoAnalysis/Scores/TiroshStemnessScores_Boxplot_PerSample.png", height = 4*ppi, width = 9*ppi, res = ppi)
-plot
-dev.off()
 ```
 
 ```{r}
@@ -127,7 +89,6 @@ plot <- ggplot(scores, aes(x = sample_name2, y = Stem_Score1, fill = sample_name
 plot
 ```
 
-
 ```{r}
 # Calculate medians 
 stem_med <- scores %>%
@@ -135,9 +96,4 @@ stem_med <- scores %>%
   summarise(Mean=mean(Stem_Score1), Median=median(Stem_Score1))
 ```
 
-# Save
-```{r}
-write.csv(stem_med, 
-          "~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoFiles/FullVireoAnalysis/Scores/StemnessScore_Median_PerSample.csv")
-```
 
