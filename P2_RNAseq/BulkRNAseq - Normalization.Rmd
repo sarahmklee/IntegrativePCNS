@@ -13,27 +13,6 @@ library(tidyverse)
 library(DESeq2)
 ```
 
-# Reformat meta data
-```{r}
-meta_final$age_group <- as.factor(ifelse(meta_final$Age_at_Diagnosis < 5, "<5", 
-                                         ifelse(meta_final$Age_at_Diagnosis >= 5 & meta_final$Age_at_Diagnosis < 10, "5 - 10", 
-                                                ifelse(meta_final$Age_at_Diagnosis >= 10 & meta_final$Age_at_Diagnosis < 15, "10 - 15",
-                                                       ifelse(meta_final$Age_at_Diagnosis >= 15, "15+", NA)))))
-
-table(meta_final$age_group)
-sum(table(meta_final$age_group))
-```
-
-```{r}
-# Remove sample that will not be used in analysis
-meta_final <- meta_final[!meta_final$SampleName %in% c("PCNS0201X"), ]
-```
-
-```{r}
-# Subset count matrix
-gene_exp_final <- gene_exp_final[, colnames(gene_exp_final) %in% c("X", "gene",meta_final$SampleName_Old)]
-```
-
 # Make into DESeq data format
 ```{r}
 # Keep as ensembl names
