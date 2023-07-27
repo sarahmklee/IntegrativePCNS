@@ -15,11 +15,6 @@ library(ggpubr)
 library(ggsci)
 ```
 
-# Load data
-```{r}
-load("~/OneDrive - Dartmouth College/PCNS_Integrated/Data/UpdatedWHO2021_DNAm/PCNS_AllSamples_Filtered_12182022.rdata")
-```
-
 # Subset
 ```{r}
 # Remove non-tumor samples
@@ -29,14 +24,6 @@ tumor_mC <- final_5mC[, !colnames(final_5hmC) %in% meta_cytmod$SampleName[meta_c
 # kepp only ones with RNAseq
 tumor_hmC <- tumor_hmC[, colnames(tumor_hmC) %in% meta_cytmod$SampleName]
 tumor_mC <- tumor_mC[, colnames(tumor_mC) %in% meta_cytmod$SampleName]
-```
-
-```{r}
-meta_cytmod$SampleName[meta_cytmod$Tumor_Categories %in% c("Non-Tumor")]
-```
-
-```{r}
-table(meta_cytmod$Tumor_Categories[meta_cytmod$OX_BS %in% 0])
 ```
 
 
@@ -64,9 +51,6 @@ for(i in 1:32){
 }
 
 rownames(MDI) <- colnames(tumor_hmC)[1:32]
-
-# View
-MDI
 ```
 
 ```{r}
@@ -76,184 +60,11 @@ tumors <- meta_cytmod$SampleName[(meta_cytmod$OX_BS %in% "1" &
 
 
 ```{r}
-# 5hmC
-hydroxy_sum <- apply(final_5hmC[,tumors], 2, sum, na.rm=TRUE)
-Avg_5hmC <- (hydroxy_sum/478156)
-
-# 5mC
-methyl_sum <- apply(final_5mC[,tumors], 2, sum, na.rm=TRUE)
-Avg_5mC <- (methyl_sum/478156)
-```
-
-```{r}
-summary(Avg_5hmC)
-summary(Avg_5mC)
-```
-
-
-```{r}
 #summary statistics for 5-mC and 5-hmC
 summary(MDI$hmC_MDI)
 summary(MDI$mC_MDI)
 ```
 
-
-# Add onto meta data
-```{r}
-meta_sub_fin <- merge(meta_cytmod, MDI, by.x = "SampleName", by.y = "row.names")
-```
-
-```{r}
-# Subset for just one row per sample
-meta_sub_fin2 <- meta_sub_fin[meta_sub_fin$OX_BS == 0, ]
-```
-
-
-# Save
-```{r}
-write.csv(meta_sub_fin2, 
-          "~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/MDI_results.csv")
-```
-
-# Plot
-```{r}
-plot <- ggplot(meta_sub_fin2, aes(x = Tumor_Categories, y = hmC_MDI, color = Tumor_Categories)) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "Tumor Type", y = "MDI", title = "5hmC") + 
-  scale_x_discrete(labels = c("ATC", "EMB", "EPN", "GNN")) +
-  scale_color_nejm() +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5hmC_MDI.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot1 <- ggplot(meta_sub_fin2, aes(x = Tumor_Categories, y = mC_MDI, color = Tumor_Categories)) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "Tumor Type", y = "MDI", title = "5mC") + 
-  scale_x_discrete(labels = c("ATC", "EMB", "EPN", "GNN")) +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_nejm() + 
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot1
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5mC_MDI.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot1
-dev.off()
-```
-
-```{r}
-library(gridExtra)
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_bothCytMod_TumorType.png", 
-    height = 4*ppi, width = 7*ppi, res = ppi)
-grid.arrange(plot, plot1, nrow = 1)
-dev.off()
-```
-
-
-```{r}
-# Correlation between the two 
-plot <- ggplot(meta_sub_fin2, aes(x = hmC_MDI, y = mC_MDI)) + 
-  geom_point() +
-  geom_smooth(method = 'lm') +
-  labs(x = "5hmC MDI", y = "5mC MDI") + 
-  stat_cor(method = "spearman") + 
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        legend.position="bottom", 
-        legend.key = element_rect(color= "white"),
-        legend.title = element_text(size = 11), 
-        legend.text = element_text(size = 11),
-        axis.title = element_text(size= 12),
-        axis.text.y = element_text(color = "black", size = 12), 
-        axis.text.x = element_text(color = "black", size = 12),
-        panel.border = element_blank(),
-        panel.grid = element_blank(),
-        axis.line = element_line(color = "black", size = 0.3),
-        plot.margin = margin(10,4,4,4))
-plot
-
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_Correlations.png", 
-    height = 5*ppi, width = 6*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot <- ggplot(meta_sub_fin2, aes(x = as.factor(grade_final), y = hmC_MDI, color = as.factor(grade_final))) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "WHO Grade", y = "MDI", title = "5hmC") + 
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_aaas() +
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5hmC_MDI_Grade.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot1 <- ggplot(meta_sub_fin2, aes(x = as.factor(grade_final), y = mC_MDI, color = as.factor(grade_final))) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "WHO Grade", y = "MDI", title = "5mC") + 
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  scale_color_aaas() +
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot1
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5mC_MDI_Grade.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot1
-dev.off()
-```
-
-```{r}
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_bothCytMod_byGRADE.png", 
-    height = 4*ppi, width = 7*ppi, res = ppi)
-grid.arrange(plot, plot1, nrow = 1)
-dev.off()
-```
 
 # Identify/remove outlier
 ```{r}
@@ -265,149 +76,4 @@ test
 ```{r}
 test2 <- grubbs.test(meta_sub_fin2$mC_MDI)
 test2
-```
-
-
-```{r}
-# Remove sample with outlier
-meta_sub_fin3 <- meta_sub_fin2[!meta_sub_fin2$SampleName2 %in% "DHMC35", ]
-```
-
-```{r}
-plot <- ggplot(meta_sub_fin3, aes(x = Tumor_Categories, y = hmC_MDI, color = Tumor_Categories)) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "Tumor Type", y = "MDI", title = "5hmC") + 
-  scale_x_discrete(labels = c("ATC", "EMB", "EPN", "GNN")) +
-  scale_color_nejm() +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5hmC_MDI_outlierremoved.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot1 <- ggplot(meta_sub_fin3, aes(x = Tumor_Categories, y = mC_MDI, color = Tumor_Categories)) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "Tumor Type", y = "MDI", title = "5mC") + 
-  scale_x_discrete(labels = c("ATC", "EMB", "EPN", "GNN")) +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_nejm() + 
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot1
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5mC_MDI_outlierremoved.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot1
-dev.off()
-```
-
-```{r}
-library(gridExtra)
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_bothCytMod_TumorType_outlierremoved.png", 
-    height = 4*ppi, width = 7*ppi, res = ppi)
-grid.arrange(plot, plot1, nrow = 1)
-dev.off()
-```
-
-
-```{r}
-# Correlation between the two 
-plot <- ggplot(meta_sub_fin3, aes(x = hmC_MDI, y = mC_MDI)) + 
-  geom_point() +
-  geom_smooth(method = 'lm') +
-  labs(x = "5hmC MDI", y = "5mC MDI") + 
-  stat_cor(method = "spearman") + 
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        legend.position="bottom", 
-        legend.key = element_rect(color= "white"),
-        legend.title = element_text(size = 11), 
-        legend.text = element_text(size = 11),
-        axis.title = element_text(size= 12),
-        axis.text.y = element_text(color = "black", size = 12), 
-        axis.text.x = element_text(color = "black", size = 12),
-        panel.border = element_blank(),
-        panel.grid = element_blank(),
-        axis.line = element_line(color = "black", size = 0.3),
-        plot.margin = margin(10,4,4,4))
-plot
-
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_Correlations_outlierremoved.png", 
-    height = 5*ppi, width = 6*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot <- ggplot(meta_sub_fin3, aes(x = as.factor(grade_final), y = hmC_MDI, color = as.factor(grade_final))) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "WHO Grade", y = "MDI", title = "5hmC") + 
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_aaas() +
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5hmC_MDI_Grade_outlierremoved.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot1 <- ggplot(meta_sub_fin3, aes(x = as.factor(grade_final), y = mC_MDI, color = as.factor(grade_final))) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "WHO Grade", y = "MDI", title = "5mC") + 
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  scale_color_aaas() +
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot1
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/5mC_MDI_Grade_outlierremoved.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot1
-dev.off()
-```
-
-```{r}
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_bothCytMod_byGRADE_outlierremoved.png", 
-    height = 4*ppi, width = 7*ppi, res = ppi)
-grid.arrange(plot, plot1, nrow = 1)
-dev.off()
 ```
