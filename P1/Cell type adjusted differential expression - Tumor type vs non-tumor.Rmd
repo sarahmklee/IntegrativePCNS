@@ -22,71 +22,9 @@ library(RColorBrewer)
 library(monocle3)
 ```
 
-# Load data
-```{r}
-load("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoData/Processed_Combined/ClusterAnnotated_RPCAintegrated_FullDataset_SeuratObj.rdata")
-```
-
 # Add cell types to meta data
 ```{r}
 full.integrated_v2@meta.data$cluster_name <- full.integrated_v2@active.ident 
-```
-
-```{r}
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "Normal"] <- "Non-Tumor"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS1"] <- "Other glioma"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS18"] <- "Glioneuronal/Neuronal"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS3"] <- "Ependymoma"
-full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS5"] <- "Glioneuronal/Neuronal"
-```
-
-```{r}
-# New sample name
-full.integrated_v2@meta.data$sample_name2 <- full.integrated_v2@meta.data$sample_name
-
-full.integrated_v2@meta.data$sample_name2[full.integrated_v2@meta.data$sample_name2 %in% "PCNS32"] <- "Normal"
-```
-
-```{r}
-full.integrated_v2@meta.data$tissue <- ifelse(full.integrated_v2@meta.data$Tumor_Categories %in% "Non-Tumor", "Non-Tumor", "Tumor")
-
-table(full.integrated_v2@meta.data$tissue)
-```
-
-```{r}
-# Add large cell cluster names
-# Broader categories
-full.integrated_v2@meta.data$large_cell_name <- ifelse(full.integrated_v2@meta.data$cluster_name %in% c("A1", "A2", "A3", "A4", "A5", "A6"), "AST",
-                      ifelse(full.integrated_v2@meta.data$cluster_name %in% c("EMB1", "EMB2"), "EMB", 
-                             ifelse(full.integrated_v2@meta.data$cluster_name %in% c("EN"), "EN",
-                             ifelse(full.integrated_v2@meta.data$cluster_name %in% c("MC", "MG1", "MG2"), "MAC_MG", 
-                                    ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NEU_EX1", "NEU_EX2", 
-                                                                      "NEU_EX3", "NEU_EX4", "NEU_EX5", 
-                                                                      "NEU_EX6", "NEU_EX7", "NEU_EX8", 
-                                                                      "NEU_EX9"), "NEU_EX", 
-                                           ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NEU_GN1", "NEU_GN2"), "NEU_GN", 
-                                                  ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NEU_INH1", "NEU_INH2", "NEU_INH3"), "NEU_INH",
-                                                         ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NSC1", "NSC2", "NSC3", "NSC4", 
-                                                                             "NSC5", "NSC6", "NSC7", "NSC8"), "NSC", 
-                                                  ifelse(full.integrated_v2@meta.data$cluster_name %in% c("OLIG1", "OLIG2"), "OLIG",
-                                                  ifelse(full.integrated_v2@meta.data$cluster_name %in% c("OPC1", "OPC2", "OPC3", 
-                                                                                    "OPC4", "OPC5", "OPC6"), "OPC", 
-                                                         ifelse(full.integrated_v2@meta.data$cluster_name %in% c("RGC1", "RGC2", "RGC3", 
-                                                                                           "RGC4"), "RGC", 
-                                                                ifelse(full.integrated_v2@meta.data$cluster_name %in% c("ST1", "ST2", 
-                                                                                                  "ST3", "ST4"), "ST", 
-                                                                       ifelse(full.integrated_v2@meta.data$cluster_name %in% c("TC"), "TC", 
-                                                                              ifelse(full.integrated_v2@meta.data$cluster_name %in% c("UBC1", 
-                                                                                                                "UBC2", "UBC3", "UBC4", "UBC5"), "UBC", 
-                                                                                     ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NEU"), "NEU", 
-                                                                                            ifelse(full.integrated_v2@meta.data$cluster_name %in% c("NEU_INT"), "NEU_INT", full.integrated_v2@meta.data$cluster_name))))))))))))))))
-
-table(full.integrated_v2@meta.data$large_cell_name)
-sum(table(full.integrated_v2@meta.data$large_cell_name))
-```
-
-```{r}
-full.integrated_v2 <- SetIdent(full.integrated_v2, value= "large_cell_name")
 ```
 
 ```{r}
@@ -185,11 +123,7 @@ for(i in tumor_types){
   pathways <- enrichPathway(gene = genes)
   pathways_df <- pathways@result
   pathways_df$Description_clean <- gsub("Homo sapiens\r: ", "", pathways_df$Description)
-  
-  # Save
-  write.csv(pathways_df, 
-            paste0("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoFiles/FullVireoAnalysis/DifferentialExpression3/ReactomePA/",
-                   print(i), "vsNormal_adjCellType_ReactomePA_results.csv"))
+
   
 }
 ```
