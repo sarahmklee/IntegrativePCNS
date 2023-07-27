@@ -11,14 +11,11 @@ library(tidyverse)
 library(msigdbr)
 library(VAM)
 
-# Load data
-load("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoData/Processed_Combined/Annotated_RPCAintegrated_FullDataset_SeuratObj.rdata")
-data <- full.integrated_v2
-rm(full.integrated_v2)
+
 
 # Get gene indices
 # Read in ensembl id and gene names from features.tsv file
-feature.data = read.delim("~/OneDrive - Dartmouth College/PCNS/snRNAseq/PCNS_Pool13/filtered_feature_bc_matrix/features.tsv.gz", 
+feature.data = read.delim("~/features.tsv.gz", 
                           header = FALSE, stringsAsFactors = FALSE)
 
 ensembl.ids = feature.data[,1]
