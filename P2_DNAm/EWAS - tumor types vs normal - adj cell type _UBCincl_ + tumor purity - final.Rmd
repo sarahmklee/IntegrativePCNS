@@ -19,14 +19,10 @@ library(gridExtra)
 library(ggsci)
 ```
 
-# Load data
-```{r}
-load("~/OneDrive - Dartmouth College/PCNS_Integrated/Data/UpdatedWHO2021_DNAm/PCNS_AllSamples_Filtered_12182022.rdata")
-```
 
 ```{r}
 # tumor purity
-purity <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/TumorPurity.csv")
+purity <- read.csv("~/TumorPurity.csv")
 ```
 
 # Subset
@@ -39,18 +35,10 @@ hmC <- final_5hmC[, meta_sub$SampleName]
 mC <- final_5mC[, meta_sub$SampleName]
 ```
 
-# Will not convert to M-values because too many INF generated
-
-```{r}
-# Tumor vs normal
-meta_sub$tissue <- ifelse(meta_sub$Tumor_Categories %in% "Non-Tumor", "Non-Tumor", "Tumor")
-
-table(meta_sub$tissue)
-```
 
 # Proportions
 ```{r}
-prop <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Files/UpdatedWHO2021/snRNAseq/FullVireo_NormalSeparatedBySample_Proportions_121822.csv", row.names = 1)
+prop <- read.csv("~/singlecell_proportions.csv", row.names = 1)
 ```
 
 ```{r}
@@ -58,10 +46,6 @@ prop <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Files/UpdatedWH
 prop_t <- as.data.frame(t(prop))
 ```
 
-```{r}
-# Change normal to PCNS31
-rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
-```
 
 # Run EWAS 
 ```{r}
@@ -77,11 +61,6 @@ meta_full2$tumortype_refact <- factor(meta_full2$Tumor_Categories2,
                                       levels = c("Non-Tumor", "Astrocytoma", "Embryonal", "Ependymoma", "GNN"))
 ```
 
-```{r}
-# Add normals to tumor purity
-purity[33, ] <- c("PCNS3111X", 0)
-purity[34, ] <- c("PCNS3211X", 0)
-```
 
 ```{r}
 # Add tumor purity
@@ -340,14 +319,6 @@ names(gnn_hmC_model_res)[14] <- "Unadj"
 names(gnn_mC_model_res)[14] <- "Unadj"
 ```
 
-```{r}
-# Save 
-save(list= c("atc_hmC_model_res", "atc_mC_model_res",
-             "emb_hmC_model_res", "emb_mC_model_res",
-             "epn_hmC_model_res", "epn_mC_model_res",
-             "gnn_hmC_model_res", "gnn_mC_model_res"), 
-     file = "~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/EWAS/TTvsNT_EWAS_UnadjAdj_allprogct_inclpurity_AllModels_121822.rdata")
-```
 
 
 ```{r}
@@ -443,36 +414,4 @@ dmcpg_melt$model <- factor(dmcpg_melt$model, levels = c("Unadj", "NEU",
                 "NEU + NSC + OPC",
                 "NEU + NSC + UBC",
                 "NEU + OPC + RGC + NSC + UBC"))
-```
-
-
-```{r}
-colSums(dmcpg_res_full[dmcpg_res_full$model %in% "NEU + OPC + RGC + NSC + UBC",1:2])
-```
-
-
-```{r}
-plot <- ggplot(dmcpg_melt, aes(x = model, y = value, fill = tumortype)) + 
-  geom_bar(stat = "identity", position= "dodge") + 
-  scale_fill_nejm() +
-  labs(x = "Model", y = "# of differentially \n(hydroxy)methylated CpGs", fill = "Tumor type") +
-    theme_bw() +
-    theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.3), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-        strip.text = element_text(color = "black", size = 11, face = "bold"), 
-        strip.background = element_blank(),
-        legend.position = "none") +
-  facet_wrap(tumortype~variable, scales = "free", ncol = 4)
-
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/EWAS/TTVsNT_AdjustedForVariousCTs_purityincl_Barplot_Final.png", 
-    height = 8*ppi, width = 13*ppi, res = ppi)
-plot
-dev.off()
 ```
