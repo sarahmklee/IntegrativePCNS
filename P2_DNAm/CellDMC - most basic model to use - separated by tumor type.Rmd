@@ -16,14 +16,9 @@ library(ggpubr)
 library(ggsci)
 ```
 
-# Load data
-```{r}
-load("~/OneDrive - Dartmouth College/PCNS_Integrated/Data/UpdatedWHO2021_DNAm/PCNS_AllSamples_Filtered_12182022.rdata")
-```
-
 ```{r}
 # tumor purity
-purity <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/TumorPurity.csv")
+purity <- read.csv("~/TumorPurity.csv")
 ```
 
 # Subset
@@ -39,20 +34,12 @@ meta_sub$tissue <- ifelse(meta_sub$Tumor_Categories %in% "Non-Tumor", "Non-Tumor
 table(meta_sub$tissue)
 ```
 
-# Proportions
-```{r}
-prop <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Files/UpdatedWHO2021/snRNAseq/FullVireo_NormalSeparatedBySample_Proportions_121822.csv", row.names = 1)
-```
-
 ```{r}
 # Transpose
+prop <- read.csv('~/singlecell_proportions.csv')
 prop_t <- as.data.frame(t(prop))
 ```
 
-```{r}
-# Change normal to PCNS31
-rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
-```
 
 ```{r}
 # Reformat metadata
@@ -60,16 +47,6 @@ rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
 meta_full2 <- merge(meta_sub, prop_t, 
                    by.x = "SampleName_Old", by.y = "row.names")
 
-  # Change levels
-meta_full2$Tumor_Categories2 <- ifelse(meta_full2$Tumor_Categories %in% "Glioneuronal/neuronal", "GNN", paste0(meta_full2$Tumor_Categories))
-meta_full2$tumortype_refact <- factor(meta_full2$Tumor_Categories2, levels = c("Non-Tumor", "Astrocytoma", "Embryonal", "Ependymoma", "GNN"))
-```
-
-```{r}
-# Add normals to tumor purity
-purity[33, ] <- c("PCNS3111X", 0)
-purity[34, ] <- c("PCNS3211X", 0)
-```
 
 ```{r}
 # Add tumor purity
@@ -173,11 +150,6 @@ atc_dhmc_res <- CellDMC(beta.m = atc_hmC_mtx,
                    #cov.mod = model.matrix(~ Sex + Age_at_Diagnosis, data = atc_meta),
                    mc.cores = 4)
 
-atc_dmct_df <- as.data.frame(atc_dmc_res[["dmct"]])
-atc_dhmct_df <- as.data.frame(atc_dhmc_res[["dmct"]])
-
-table(atc_dmct_df$DMC)
-table(atc_dhmct_df$DMC)
 ```
 
 ```{r}
@@ -192,12 +164,6 @@ emb_dhmc_res <- CellDMC(beta.m = emb_hmC_mtx,
                    frac.m = emb_prop,
                    #cov.mod = model.matrix(~ Sex + Age_at_Diagnosis, data = emb_meta),
                    mc.cores = 4)
-
-emb_dmct_df <- as.data.frame(emb_dmc_res[["dmct"]])
-emb_dhmct_df <- as.data.frame(emb_dhmc_res[["dmct"]])
-
-table(emb_dmct_df$DMC)
-table(emb_dhmct_df$DMC)
 ```
 
 ```{r}
@@ -213,11 +179,6 @@ epn_dhmc_res <- CellDMC(beta.m = epn_hmC_mtx,
                    #cov.mod = model.matrix(~ Sex + Age_at_Diagnosis, data = epn_meta),
                    mc.cores = 4)
 
-epn_dmct_df <- as.data.frame(epn_dmc_res[["dmct"]])
-epn_dhmct_df <- as.data.frame(epn_dhmc_res[["dmct"]])
-
-table(epn_dmct_df$DMC)
-table(epn_dhmct_df$DMC)
 ```
 
 ```{r}
@@ -232,30 +193,9 @@ gnn_dhmc_res <- CellDMC(beta.m = gnn_hmC_mtx,
                    frac.m = gnn_prop,
                    #cov.mod = model.matrix(~ Sex + Age_at_Diagnosis, data = gnn_meta),
                    mc.cores = 4)
-
-gnn_dmct_df <- as.data.frame(gnn_dmc_res[["dmct"]])
-gnn_dhmct_df <- as.data.frame(gnn_dhmc_res[["dmct"]])
-
-table(gnn_dmct_df$DMC)
-table(gnn_dhmct_df$DMC)
-```
-
-```{r}
-save(list = c("atc_dhmc_res", "atc_dmc_res", 
-              "emb_dhmc_res", "emb_dmc_res", 
-              "epn_dhmc_res", "epn_dmc_res", 
-              "gnn_dhmc_res", "gnn_dmc_res"), 
-     file = "~/OneDrive - Dartmouth College/PCNS_Integrated/Files/UpdatedWHO2021/CellDMC_FINAL/Full_TT_CellDMC_Results_121822.rdata")
 ```
 
 
-```{r}
-# Save
-save(list = c("atc_dmct_df", "atc_dhmct_df", 
-              "emb_dmct_df", "emb_dhmct_df", 
-              "epn_dmct_df", "epn_dhmct_df", 
-              "gnn_dmct_df", "gnn_dhmct_df"), 
-     file = "~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/CellDMC/TumorTypeSeparated_BasicCellDMC_Model_Results_12182022.rdata")
-```
+
 
 
