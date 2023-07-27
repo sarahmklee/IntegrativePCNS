@@ -20,31 +20,6 @@ library(AnnotationDbi)
 prop_t <- as.data.frame(t(prop))
 ```
 
-```{r}
-# Change normal to PCNS31
-rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
-```
-
-```{r}
-# Remove sample that will not be used in analysis
-meta_final <- meta_final[!meta_final$SampleName %in% c("PCNS0201X"), ]
-```
-
-```{r}
-# Reformat metadata
-# Add onto meta data
-meta_full2 <- merge(meta_final, prop_t, 
-                   by.x = "SampleName_Old", by.y = "row.names")
-
-  # Change levels
-meta_full2$Tumor_Categories2 <- ifelse(meta_full2$Tumor_Categories %in% "Glioneuronal/neuronal", "GNN", paste0(meta_full2$Tumor_Categories))
-meta_full2$tumortype_refact <- factor(meta_full2$Tumor_Categories2, levels = c("Non-Tumor", "Astrocytoma", "Embryonal", "Ependymoma", "GNN"))
-```
-
-```{r}
-# Subset count matrix
-gene_exp_final <- gene_exp_final[, colnames(gene_exp_final) %in% c("X", "gene",meta_final$SampleName_Old)]
-```
 
 # Make into DESeq data format
 ```{r}
@@ -64,10 +39,6 @@ meta_final <- meta_final[match(colnames(gene_df), meta_final$SampleName_Old),]
 identical(meta_final$SampleName_Old, colnames(gene_df))
 ```
 
-```{r}
-meta_final$tissue <- ifelse(meta_final$Tumor_Categories %in% c("Non-Tumor"), "Non-Tumor", "Tumor")
-meta_final$tissue <- factor(meta_final$tissue, levels = c("Non-Tumor", "Tumor"))
-```
 
 ```{r}
 dds <- DESeqDataSetFromMatrix(countData = gene_df,
