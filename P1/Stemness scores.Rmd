@@ -18,7 +18,7 @@ library(Seurat)
 
 ```{r}
 # Load markers
-stem_genes <- read.csv("~/OneDrive - Dartmouth College/PCNS/snRNAseq/Markers/Tirosh_etal_2016_StemGenes.csv")
+stem_genes <- read.csv("~/Tirosh_etal_2016_StemGenes.csv")
 ```
 
 ```{r}
