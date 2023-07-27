@@ -18,140 +18,15 @@ library(ggsci)
 
 # Load data
 ```{r}
-purity <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/TumorPurity.csv")
-MDI <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/MDI_results.csv")
+purity <- read.csv("~/TumorPurity.csv")
+MDI <- read.csv("~/MDI_results.csv")
 ```
 
 # Combine
 ```{r}
 combined <- merge(MDI, purity, by.x = "SampleName", by.y = "X")
-
-colnames(combined)
 ```
 
-# Tumor type vs grade
-```{r}
-table(combined$Tumor_Categories, combined$WHO_GRADE)
-```
-
-# Plot
-```{r}
-plot <- ggplot(combined, aes(x = Tumor_Categories, y = x, color = Tumor_Categories)) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "Tumor Type", y = "Tumor purity") + 
-  scale_x_discrete(labels = c("ATC", "EMB", "EPN", "GNN")) +
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_nejm() + 
-  stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-
-plot
-
-ppi = 200
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/TumorPurity_byTumorType.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot <- ggplot(combined, aes(x = as.factor(grade_final), y = x, color = as.factor(grade_final))) + 
-  geom_point(alpha = 0.6, size = 3) +
-  labs(x = "WHO Grade", y = "Tumor Purity") + 
-  #stat_compare_means(method = "kruskal", label.x.npc = "center", size = 3) + 
-  stat_summary(fun="mean", color = "black", shape= "-", size = 3, alpha = 0.5) +
-  scale_color_aaas() +
-  theme_bw() +
-  theme(panel.grid = element_blank(), 
-        panel.border = element_blank(), 
-        axis.line = element_line(color = "black", size = 0.2), 
-        axis.title = element_text(color = "black", size = 12), 
-        axis.text = element_text(color = "black", size = 11), 
-        legend.position = "none")
-plot
-
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/TumorPurity_byGRADE.png", 
-    height = 4*ppi, width = 5.5*ppi, res = ppi)
-plot
-dev.off()
-
-```
-
-```{r}
-plot <- ggplot(combined, aes(x = x, y = mC_MDI)) + 
-  geom_point() +
-  geom_smooth(method = 'lm') +
-  labs(x = "Tumor purity", y = "5mC MDI") + 
-  stat_cor(method = "spearman") + 
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        legend.position="bottom", 
-        legend.key = element_rect(color= "white"),
-        legend.title = element_text(size = 11), 
-        legend.text = element_text(size = 11),
-        axis.title = element_text(size= 12),
-        axis.text.y = element_text(color = "black", size = 12), 
-        axis.text.x = element_text(color = "black", size = 12),
-        panel.border = element_blank(),
-        panel.grid = element_blank(),
-        axis.line = element_line(color = "black", size = 0.3),
-        plot.margin = margin(10,4,4,4))
-plot
-
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/TumorPurity_vs_mC_MDI.png", 
-    height = 5*ppi, width = 6*ppi, res = ppi)
-plot
-dev.off()
-```
-
-```{r}
-plot1 <- ggplot(combined, aes(x = x, y = hmC_MDI)) + 
-  geom_point() +
-  geom_smooth(method = 'lm') +
-  labs(x = "Tumor purity", y = "5hmC MDI") + 
-  stat_cor(method = "spearman") + 
-  theme_bw() +
-  theme(strip.background = element_blank(),
-        legend.position="bottom", 
-        legend.key = element_rect(color= "white"),
-        legend.title = element_text(size = 11), 
-        legend.text = element_text(size = 11),
-        axis.title = element_text(size= 12),
-        axis.text.y = element_text(color = "black", size = 12), 
-        axis.text.x = element_text(color = "black", size = 12),
-        panel.border = element_blank(),
-        panel.grid = element_blank(),
-        axis.line = element_line(color = "black", size = 0.3),
-        plot.margin = margin(10,4,4,4))
-plot1
-
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/TumorPurity_vs_hmC_MDI.png", 
-    height = 5*ppi, width = 6*ppi, res = ppi)
-plot1
-dev.off()
-```
-
-```{r}
-library(gridExtra)
-png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/MDI_bothCytMod_TumorPurity.png", 
-    height = 4*ppi, width = 7*ppi, res = ppi)
-grid.arrange(plot, plot1, nrow = 1)
-dev.off()
-```
-
-```{r}
-summary(lm(hmC_MDI~x + grade_final, data = combined))
-```
-
-```{r}
-summary(lm(mC_MDI~x + grade_final, data = combined))
-```
 
 ```{r}
 summary(lm(hmC_MDI~x + as.factor(grade_final), data = combined))
