@@ -1,0 +1,212 @@
+---
+title: "Differential gene expression"
+author: "Sarah Lee"
+date: "2022-07-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(tidyverse)
+library(DESeq2)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+```
+
+```{r}
+# Transpose
+prop_t <- as.data.frame(t(prop))
+```
+
+```{r}
+# Change normal to PCNS31
+rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
+```
+
+```{r}
+# Remove sample that will not be used in analysis
+meta_final <- meta_final[!meta_final$SampleName %in% c("PCNS0201X"), ]
+```
+
+```{r}
+# Reformat metadata
+# Add onto meta data
+meta_full2 <- merge(meta_final, prop_t, 
+                   by.x = "SampleName_Old", by.y = "row.names")
+
+  # Change levels
+meta_full2$Tumor_Categories2 <- ifelse(meta_full2$Tumor_Categories %in% "Glioneuronal/neuronal", "GNN", paste0(meta_full2$Tumor_Categories))
+meta_full2$tumortype_refact <- factor(meta_full2$Tumor_Categories2, levels = c("Non-Tumor", "Astrocytoma", "Embryonal", "Ependymoma", "GNN"))
+```
+
+```{r}
+# Subset count matrix
+gene_exp_final <- gene_exp_final[, colnames(gene_exp_final) %in% c("X", "gene",meta_final$SampleName_Old)]
+```
+
+# Make into DESeq data format
+```{r}
+# Keep as ensembl names
+gene_df <- gene_exp_final
+rownames(gene_df) <- gene_df$X
+gene_df <- gene_df[, -c(1:2)]
+
+head(gene_df)
+```
+
+```{r}
+# Match order
+meta_final <- meta_final[match(colnames(gene_df), meta_final$SampleName_Old),]
+
+# Check order
+identical(meta_final$SampleName_Old, colnames(gene_df))
+```
+
+```{r}
+meta_final$tissue <- ifelse(meta_final$Tumor_Categories %in% c("Non-Tumor"), "Non-Tumor", "Tumor")
+meta_final$tissue <- factor(meta_final$tissue, levels = c("Non-Tumor", "Tumor"))
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = gene_df,
+                              colData = meta_full2,
+                              design = ~ tumortype_refact + Sex + Age_at_Diagnosis)
+dds
+```
+
+# Run DESEQ2
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+# Look at the dispersion
+plotDispEsts(dds)
+```
+
+# Get the results
+```{r}
+resultsNames(dds)
+```
+
+```{r}
+atc_res <- results(dds, 
+               name = "tumortype_refact_Astrocytoma_vs_Non.Tumor",
+               alpha = 0.05)
+
+emb_res <- results(dds, 
+               name = "tumortype_refact_Embryonal_vs_Non.Tumor",
+               alpha = 0.05)
+
+epn_res <- results(dds, 
+               name = "tumortype_refact_Ependymoma_vs_Non.Tumor",
+               alpha = 0.05)
+
+gnn_res <- results(dds, 
+               name = "tumortype_refact_GNN_vs_Non.Tumor",
+               alpha = 0.05)
+```
+
+
+```{r}
+# Reformat some results
+atc_de_res <- as.data.frame(atc_res)
+emb_de_res <- as.data.frame(emb_res)
+epn_de_res <- as.data.frame(epn_res)
+gnn_de_res <- as.data.frame(gnn_res)
+
+# Get gene symbols
+atc_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(atc_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+emb_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(emb_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+epn_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(epn_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+gnn_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(gnn_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+```
+
+
+### Adjust for the same proportions as the EWAS data
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = gene_df,
+                              colData = meta_full2,
+                              design = ~ tumortype_refact + Sex + Age_at_Diagnosis + NEU + OPC + RGC + NSC + UBC)
+dds
+```
+
+# Run DESEQ2
+```{r}
+dds <- DESeq(dds)
+```
+
+
+```{r}
+# Look at the dispersion
+plotDispEsts(dds)
+```
+
+# Get the results
+```{r}
+resultsNames(dds)
+```
+
+````{r}
+atc_res <- results(dds, 
+               name = "tumortype_refact_Astrocytoma_vs_Non.Tumor",
+               alpha = 0.05)
+
+emb_res <- results(dds, 
+               name = "tumortype_refact_Embryonal_vs_Non.Tumor",
+               alpha = 0.05)
+
+epn_res <- results(dds, 
+               name = "tumortype_refact_Ependymoma_vs_Non.Tumor",
+               alpha = 0.05)
+
+gnn_res <- results(dds, 
+               name = "tumortype_refact_GNN_vs_Non.Tumor",
+               alpha = 0.05)
+```
+
+```{r}
+# Reformat some results
+atc_de_res <- as.data.frame(atc_res)
+emb_de_res <- as.data.frame(emb_res)
+epn_de_res <- as.data.frame(epn_res)
+gnn_de_res <- as.data.frame(gnn_res)
+
+# Get gene symbols
+atc_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(atc_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+emb_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(emb_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+epn_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(epn_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+
+gnn_de_res$gene <- mapIds(x = org.Hs.eg.db,
+                      keys = rownames(gnn_de_res), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL")
+```

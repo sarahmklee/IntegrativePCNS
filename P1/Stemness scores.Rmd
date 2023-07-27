@@ -1,0 +1,143 @@
+---
+title: "Full Vireo - Stemness score per sample"
+author: "Sarah Lee"
+date: "4/25/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(patchwork)
+library(tidyverse)
+library(ggpubr)
+library(ggsci)
+library(Seurat)
+```
+
+# Load data
+```{r}
+load("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoData/Processed_Combined/ClusterAnnotated_RPCAintegrated_FullDataset_SeuratObj.rdata")
+```
+
+```{r}
+full.integrated_v2@meta.data$cluster_name <- full.integrated_v2@active.ident
+```
+
+```{r}
+full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "Normal"] <- "Non-Tumor"
+full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS1"] <- "Other glioma"
+full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS18"] <- "Glioneuronal/Neuronal"
+full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS3"] <- "Ependymoma"
+full.integrated_v2@meta.data$Tumor_Categories[full.integrated_v2@meta.data$sample_name %in% "PCNS5"] <- "Glioneuronal/Neuronal"
+```
+
+```{r}
+# New sample name
+full.integrated_v2@meta.data$sample_name2 <- full.integrated_v2@meta.data$sample_name
+
+full.integrated_v2@meta.data$sample_name2[full.integrated_v2@meta.data$sample_name2 %in% "PCNS32"] <- "Normal"
+```
+
+```{r}
+full.integrated_v2@meta.data$tissue <- ifelse(full.integrated_v2@meta.data$Tumor_Categories %in% "Non-Tumor", "Non-Tumor", "Tumor")
+
+table(full.integrated_v2@meta.data$tissue)
+```
+
+```{r}
+meta_fin <- read.csv("~/OneDrive - Dartmouth College/PCNS/snRNAseq/SampleInformation/FINAL_PCNS_MetaData_052022.csv")
+```
+
+```{r}
+# Load markers
+stem_genes <- read.csv("~/OneDrive - Dartmouth College/PCNS/snRNAseq/Markers/Tirosh_etal_2016_StemGenes.csv")
+```
+
+```{r}
+# Stem score
+stem_features <- list(unlist(stem_genes[,1]))
+full.integrated_v2 <- AddModuleScore(full.integrated_v2, features = stem_features,
+                                     assay = "RNA", ctrl = 5, name = "Stem_Score")
+```
+
+# Per sample plot
+```{r}
+scores <- full.integrated_v2@meta.data[, c("sample_name2", "cluster_name", "Stem_Score1", "Tumor_Categories")]
+```
+
+```{r}
+unlist(unique(scores$sample_name2))
+```
+
+```{r}
+scores_merged <- merge(scores, meta_fin[,c("SampleID_v2", "SampleName_FINAL")],
+                       by.x = "sample_name2", by.y = "SampleID_v2")
+```
+
+```{r}
+plot <- ggplot(scores_merged, aes(x = reorder(SampleName_FINAL, Stem_Score1, FUN = median), y = Stem_Score1)) + 
+  geom_hline(yintercept = 0, linetype = "dashed", size = 0.5) +
+  geom_violin(draw_quantiles = c(0.5), fill = "lightblue2") +
+  geom_hline(yintercept = 0, linetype = "dashed", size = 0.5) +
+  labs(x = "Sample", y = "Stemness score") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 9, color = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.title = element_text(size = 10, color = "black"),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(), 
+        panel.border = element_blank(),
+        axis.line = element_line(size = 0.4, color = "black"),
+        strip.background = element_blank(), 
+        strip.text = element_blank(),
+        legend.position = "none",
+        legend.title = element_text(size = 10, color = "black", face = "bold"))
+plot
+
+ppi = 200
+png("~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoFigures/FullVireoAnalysis/Scores/TiroshStemnessScores_Boxplot_PerSample.png", height = 4*ppi, width = 9*ppi, res = ppi)
+plot
+dev.off()
+```
+
+```{r}
+symnum.args <- list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1), symbols = c("****", "***", "**", "*", "ns"))
+
+
+plot <- ggplot(scores, aes(x = sample_name2, y = Stem_Score1, fill = sample_name2)) + 
+  geom_hline(yintercept = 0, linetype = "dashed", size = 0.5) +
+  geom_violin(draw_quantiles = c(0.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", size = 0.5) +
+  labs(x = "Cluster", y = "Stemness score") +
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox", symnum.args = symnum.args) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 9, color = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.title = element_text(size = 10, color = "black"),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(), 
+        panel.border = element_blank(),
+        axis.line = element_line(size = 0.4, color = "black"),
+        strip.background = element_blank(), 
+        strip.text = element_blank(),
+        legend.position = "none",
+        legend.title = element_text(size = 10, color = "black", face = "bold")) 
+plot
+```
+
+
+```{r}
+# Calculate medians 
+stem_med <- scores %>%
+  group_by(sample_name2) %>% 
+  summarise(Mean=mean(Stem_Score1), Median=median(Stem_Score1))
+```
+
+# Save
+```{r}
+write.csv(stem_med, 
+          "~/OneDrive - Dartmouth College/PCNS/snRNAseq/VireoFiles/FullVireoAnalysis/Scores/StemnessScore_Median_PerSample.csv")
+```
+

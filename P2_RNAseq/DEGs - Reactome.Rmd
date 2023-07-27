@@ -1,0 +1,107 @@
+---
+title: "All adj DE - Reactome PA"
+author: "Sarah Lee"
+date: "2022-09-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(ReactomePA)
+library(tidyverse)
+library(scales)
+library(ggpubr)
+library(ggsci)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+```
+
+# Load data
+```{r}
+ATC <- as.data.frame(adj[["ATC"]])
+EMB <- as.data.frame(adj[["EMB"]])
+EPN <- as.data.frame(adj[["EPN"]])
+GNN <- as.data.frame(adj[["GNN"]])
+```
+
+```{r}
+increased_genes <- Reduce(intersect, list(ATC$X[(ATC$padj < 0.05 & ATC$log2FoldChange > 0)], 
+                                          EMB$X[(EMB$padj < 0.05 & EMB$log2FoldChange > 0)],
+                                          EPN$X[(EPN$padj < 0.05 & EPN$log2FoldChange > 0)],
+                                          GNN$X[(GNN$padj < 0.05 & GNN$log2FoldChange > 0)]))
+
+decreased_genes <- Reduce(intersect, list(ATC$X[(ATC$padj < 0.05 & ATC$log2FoldChange < 0)], 
+                                          EMB$X[(EMB$padj < 0.05 & EMB$log2FoldChange < 0)],
+                                          EPN$X[(EPN$padj < 0.05 & EPN$log2FoldChange < 0)],
+                                          GNN$X[(GNN$padj < 0.05 & GNN$log2FoldChange < 0)]))
+```
+
+# Get gene ids
+```{r}
+inc_sig_geneids <- unlist(mapIds(x = org.Hs.eg.db,
+                      keys = increased_genes,
+                      column = "ENTREZID", 
+                      keytype = "ENSEMBL"))
+
+dec_sig_geneids <- unlist(mapIds(x = org.Hs.eg.db,
+                      keys = decreased_genes,  
+                      column = "ENTREZID", 
+                      keytype = "ENSEMBL"))
+
+all_geneids <- unlist(mapIds(x = org.Hs.eg.db, 
+                      keys = ATC$X, 
+                      column = "ENTREZID", 
+                      keytype = "ENSEMBL"))
+```
+
+```{r}
+# Remove any NAs
+inc_sig_geneids <- inc_sig_geneids[!is.na(inc_sig_geneids)]
+dec_sig_geneids <- dec_sig_geneids[!is.na(dec_sig_geneids)]
+all_geneids <- all_geneids[!is.na(all_geneids)]
+```
+
+
+# Run ReactomePA
+```{r}
+inc_pathways <- enrichPathway(gene = inc_sig_geneids, 
+                              universe = all_geneids)
+inc_pathways_df <- inc_pathways@result
+inc_pathways_df$Description_clean <- gsub("Homo sapiens\r: ", "", inc_pathways_df$Description)
+
+p <- ggplot(inc_pathways_df[inc_pathways_df$qvalue < 0.05, ], aes(x = reorder(Description_clean, -pvalue), y = -log10(pvalue))) + 
+    geom_bar(stat = "identity", fill = "#A7303099") +
+    labs(x = "", title=  "Shared genes with increased expression") +
+    scale_x_discrete(labels= wrap_format(45)) +
+  scale_y_continuous(expand = c(0.01,0.1)) +
+    coord_flip() + 
+    theme_bw() +
+    theme(panel.grid = element_blank(), 
+        panel.border = element_blank(), 
+        axis.line = element_line(size = 0.4, color = "black"),
+        axis.text= element_text(size=11, color= "black"), 
+        axis.title = element_text(size= 11, color= "black"))
+p
+```
+
+```{r}
+dec_pathways <- enrichPathway(gene = dec_sig_geneids, 
+                              universe = all_geneids)
+dec_pathways_df <- dec_pathways@result
+dec_pathways_df$Description_clean <- gsub("Homo sapiens\r: ", "", dec_pathways_df$Description)
+
+p <- ggplot(dec_pathways_df[dec_pathways_df$qvalue < 0.05, ], aes(x = reorder(Description_clean, -pvalue), y = -log10(pvalue))) + 
+    geom_bar(stat = "identity", fill = "#4A699099") +
+    labs(x = "", title=  "Shared genes with decreased expression") +
+    scale_x_discrete(labels= wrap_format(45)) +
+    coord_flip() + 
+    theme_bw() +
+    theme(panel.grid = element_blank(), 
+        panel.border = element_blank(), 
+        axis.line = element_line(size = 0.4, color = "black"),
+        axis.text= element_text(size=11, color= "black"), 
+        axis.title = element_text(size= 11, color= "black"))
+p
+```

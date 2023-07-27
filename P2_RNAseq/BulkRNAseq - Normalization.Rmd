@@ -1,0 +1,86 @@
+---
+title: "Normalization for bulk RNAseq"
+author: "Sarah Lee"
+date: '2022-07-06'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(tidyverse)
+library(DESeq2)
+```
+
+# Reformat meta data
+```{r}
+meta_final$age_group <- as.factor(ifelse(meta_final$Age_at_Diagnosis < 5, "<5", 
+                                         ifelse(meta_final$Age_at_Diagnosis >= 5 & meta_final$Age_at_Diagnosis < 10, "5 - 10", 
+                                                ifelse(meta_final$Age_at_Diagnosis >= 10 & meta_final$Age_at_Diagnosis < 15, "10 - 15",
+                                                       ifelse(meta_final$Age_at_Diagnosis >= 15, "15+", NA)))))
+
+table(meta_final$age_group)
+sum(table(meta_final$age_group))
+```
+
+```{r}
+# Remove sample that will not be used in analysis
+meta_final <- meta_final[!meta_final$SampleName %in% c("PCNS0201X"), ]
+```
+
+```{r}
+# Subset count matrix
+gene_exp_final <- gene_exp_final[, colnames(gene_exp_final) %in% c("X", "gene",meta_final$SampleName_Old)]
+```
+
+# Make into DESeq data format
+```{r}
+# Keep as ensembl names
+gene_df <- gene_exp_final
+rownames(gene_df) <- gene_df$X
+gene_df <- gene_df[, -c(1:2)]
+
+head(gene_df)
+```
+
+```{r}
+# Match order
+meta_final <- meta_final[match(colnames(gene_df), meta_final$SampleName_Old),]
+
+# Check order
+identical(meta_final$SampleName_Old, colnames(gene_df))
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = gene_df,
+                              colData = meta_final,
+                              design = ~ Tumor_Categories + age_group + Sex)
+dds
+```
+
+```{r}
+# Get size factors
+dds <- estimateSizeFactors(dds)
+```
+
+```{r}
+hist(sizeFactors(dds))
+```
+
+```{r}
+# Get normalized counts
+normalized_counts <- counts(dds, normalized=TRUE)
+```
+
+# Get log2 transformed
+```{r}
+vst_norm_cts <- vst(dds)
+```
+
+```{r}
+# Get just the counts
+vst_norm_cts_df <- as.data.frame(assay(vst_norm_cts))
+```
+
+`

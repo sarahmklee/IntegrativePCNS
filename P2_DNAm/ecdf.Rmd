@@ -1,0 +1,109 @@
+---
+title: "CDF 5hmC vs 5mC"
+author: "Sarah Lee"
+date: "2022-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(tidyverse)
+library(stats)
+```
+
+# Load data
+```{r}
+load("~/OneDrive - Dartmouth College/PCNS_Integrated/Data/UpdatedWHO2021_DNAm/PCNS_AllSamples_Filtered_12182022.rdata")
+```
+
+# Calculate means
+```{r}
+tumors <- meta_cytmod$SampleName[(meta_cytmod$OX_BS %in% "1" & 
+                                    !meta_cytmod$Tumor_Categories %in% c("Non-Tumor"))]
+```
+
+```{r}
+#### mean 
+mbeta1 <- apply(final_5hmC[,tumors], 1, mean, na.rm=TRUE)
+mbeta2 <- apply(final_5mC[,tumors], 1, mean, na.rm=TRUE)
+```
+
+```{r}
+#### using median betas 
+par(bty = "L")
+plot(ecdf(mbeta2), col = "#4A6990FF", 
+     xlab = "Beta value", ylab = "eCDF", 
+     main = "")
+lines(ecdf(mbeta1), col = "#A73030FF")
+legend(0.8, 0.25, legend=c("5-mC", "5-hmC"), lty = 1,
+       col=c("#4A6990FF", "#A73030FF"), 
+       box.lty=0)
+
+ppi = 200
+png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/Tumors_ECDF_plot.png", 
+    height = 5*ppi, width = 6*ppi, res = ppi)
+par(bty = "L")
+plot(ecdf(mbeta2), col = "#4A6990FF", lwd = 1.25,
+     xlab = "Beta value", ylab = "eCDF", 
+     main = "Tumor only")
+lines(ecdf(mbeta1), col = "#A73030FF", lwd = 1.25)
+legend(0.8, 0.25, legend=c("5-mC", "5-hmC"), lty = 1,
+       col=c("#4A6990FF", "#A73030FF"), 
+       box.lty=0)
+dev.off()
+```
+
+```{r}
+#### mean 
+mbeta1.1 <- apply(final_5hmC[,!colnames(final_5hmC) %in% tumors], 1, mean, na.rm=TRUE)
+mbeta2.1 <- apply(final_5mC[,!colnames(final_5mC) %in% tumors], 1, mean, na.rm=TRUE)
+```
+
+```{r}
+#### using median betas 
+par(bty = "L")
+plot(ecdf(mbeta2.1), col = "#4A6990FF", 
+     xlab = "Beta value", ylab = "eCDF", 
+     main = "")
+lines(ecdf(mbeta1.1), col = "#A73030FF")
+legend(0.8, 0.25, legend=c("5-mC", "5-hmC"), lty = 1,
+       col=c("#4A6990FF", "#A73030FF"), 
+       box.lty=0)
+
+ppi = 200
+png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/NonTumors_ECDF_plot.png", 
+    height = 5*ppi, width = 6*ppi, res = ppi)
+par(bty = "L")
+plot(ecdf(mbeta2.1), col = "#4A6990FF", lwd = 1.25,
+     xlab = "Beta value", ylab = "eCDF", 
+     main = "Non-tumor only")
+lines(ecdf(mbeta1.1), col = "#A73030FF", lwd = 1.25)
+legend(0.8, 0.25, legend=c("5-mC", "5-hmC"), lty = 1,
+       col=c("#4A6990FF", "#A73030FF"), 
+       box.lty=0)
+dev.off()
+```
+
+```{r}
+png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/Distributions/Both_ECDF_plot.png", 
+    height = 5.5*ppi, width = 5.5*ppi, res = ppi)
+par(bty = "L")
+plot(ecdf(mbeta2), col = "#00468BFF", lty = 1,
+     xlab = "Median beta value", ylab = "Cumulative proportion", 
+     main = "")
+lines(ecdf(mbeta1), col = "#ED0000FF", lty = 1)
+lines(ecdf(mbeta2.1), col = "#0099B4FF", lty = 1)
+lines(ecdf(mbeta1.1), col = "#925E9FFF", lty = 1)
+legend(0.55, 0.32, legend=c("tumor 5-mC", "tumor 5-hmC", 
+                           "non-tumor 5-mC", "non-tumor 5-hmC"), lty = 1, lwd = 1.25, 
+       col=c("#00468BFF", "#ED0000FF", "#0099B4FF", "#925E9FFF"), 
+       box.lty=0)
+dev.off()
+
+
+```
+
+
+

@@ -1,0 +1,478 @@
+---
+title: "EWAS - Tumor types vs Normal - ADJ for cell type + tumor purity"
+author: "Sarah Lee"
+date: "2022-07-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(limma)
+library(qvalue)
+library(ggpubr)
+library(minfi)
+library(tidyverse)
+library(reshape2)
+library(gridExtra)
+library(ggsci)
+```
+
+# Load data
+```{r}
+load("~/OneDrive - Dartmouth College/PCNS_Integrated/Data/UpdatedWHO2021_DNAm/PCNS_AllSamples_Filtered_12182022.rdata")
+```
+
+```{r}
+# tumor purity
+purity <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/TumorPurity.csv")
+```
+
+# Subset
+```{r}
+meta_sub <- meta_cytmod[meta_cytmod$OX_BS == 0,]
+```
+
+```{r}
+hmC <- final_5hmC[, meta_sub$SampleName]
+mC <- final_5mC[, meta_sub$SampleName]
+```
+
+# Will not convert to M-values because too many INF generated
+
+```{r}
+# Tumor vs normal
+meta_sub$tissue <- ifelse(meta_sub$Tumor_Categories %in% "Non-Tumor", "Non-Tumor", "Tumor")
+
+table(meta_sub$tissue)
+```
+
+# Proportions
+```{r}
+prop <- read.csv("~/OneDrive - Dartmouth College/PCNS_Integrated/Files/UpdatedWHO2021/snRNAseq/FullVireo_NormalSeparatedBySample_Proportions_121822.csv", row.names = 1)
+```
+
+```{r}
+# Transpose
+prop_t <- as.data.frame(t(prop))
+```
+
+```{r}
+# Change normal to PCNS31
+rownames(prop_t)[rownames(prop_t) %in% "Normal"] <- "PCNS31"
+```
+
+# Run EWAS 
+```{r}
+# Reformat metadata
+# Add onto meta data
+meta_full2 <- merge(meta_sub, prop_t, 
+                   by.x = "SampleName_Old", by.y = "row.names")
+
+  # Change levels
+meta_full2$Tumor_Categories2 <- ifelse(meta_full2$Tumor_Categories %in% "Glioneuronal/neuronal", "GNN",
+                                       paste0(meta_full2$Tumor_Categories))
+meta_full2$tumortype_refact <- factor(meta_full2$Tumor_Categories2,
+                                      levels = c("Non-Tumor", "Astrocytoma", "Embryonal", "Ependymoma", "GNN"))
+```
+
+```{r}
+# Add normals to tumor purity
+purity[33, ] <- c("PCNS3111X", 0)
+purity[34, ] <- c("PCNS3211X", 0)
+```
+
+```{r}
+# Add tumor purity
+meta_full3 <- merge(meta_full2, purity, by.x = "SampleName", by.y = "X")
+```
+
+```{r}
+meta_reord <- meta_full3[match(colnames(mC), meta_full3$SampleName),]
+
+# Check order
+all(meta_reord$SampleName == colnames(mC))
+```
+
+```{r}
+meta_reord$purity <- as.numeric(as.character(meta_reord$x))
+```
+
+
+```{r}
+model_list <- c("NEU", 
+                "RGC", 
+                "NSC", 
+                "OPC", 
+                "UBC",
+                "NEU + RGC", 
+                "NEU + NSC", 
+                "NEU + OPC", 
+                "NEU + UBC", 
+                "NEU + NSC + RGC", 
+                "NEU + NSC + OPC",
+                "NEU + NSC + UBC", 
+                "NEU + OPC + RGC + NSC + UBC")
+```
+
+```{r}
+# List to store results
+atc_hmC_model_res <- vector(mode = "list", length = 14)
+atc_mC_model_res <- vector(mode = "list", length = 14)
+
+emb_hmC_model_res <- vector(mode = "list", length = 14)
+emb_mC_model_res <- vector(mode = "list", length = 14)
+
+epn_hmC_model_res <- vector(mode = "list", length = 14)
+epn_mC_model_res <- vector(mode = "list", length = 14)
+
+gnn_hmC_model_res <- vector(mode = "list", length = 14)
+gnn_mC_model_res <- vector(mode = "list", length = 14)
+
+names(atc_hmC_model_res) <- model_list
+names(atc_mC_model_res) <- model_list
+
+names(emb_hmC_model_res) <- model_list
+names(emb_mC_model_res) <- model_list
+
+names(epn_hmC_model_res) <- model_list
+names(epn_mC_model_res) <- model_list
+
+names(gnn_hmC_model_res) <- model_list
+names(gnn_mC_model_res) <- model_list
+
+for(i in model_list){
+  # Specify models
+  XX <- model.matrix(as.formula(paste0("~tumortype_refact + Sex + Age_at_Diagnosis + purity +", i)), data = meta_reord)
+  
+  # Run model for mC and hmC
+  limma_hmC <- eBayes(lmFit(hmC, XX))
+  limma_mC <- eBayes(lmFit(mC, XX))
+  
+  # Adjust pvalues 
+  atc_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactAstrocytoma"])
+  atc_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactAstrocytoma"])
+  
+  emb_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactEmbryonal"])
+  emb_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactEmbryonal"])
+  
+  epn_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactEpendymoma"])
+  epn_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactEpendymoma"])
+  
+  gnn_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactGNN"])
+  gnn_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactGNN"])
+  
+  # Put into one data frame
+  atc_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactAstrocytoma"], 
+                            'pVal' = atc_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(atc_qval_hmC$pvalues), 
+                            'qVal' = atc_qval_hmC$qvalues)
+
+  atc_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactAstrocytoma"], 
+                            'pVal' = atc_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(atc_qval_mC$pvalues), 
+                            'qVal' = atc_qval_mC$qvalues)  
+  atc_hmC_results$sig <- as.factor(ifelse(atc_hmC_results$qVal < 0.05, 1, 0))
+  atc_mC_results$sig <- as.factor(ifelse(atc_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  atc_hmC_model_res[[i]] <- atc_hmC_results
+  atc_mC_model_res[[i]] <- atc_mC_results
+  
+  # Put into one data frame
+  emb_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactEmbryonal"], 
+                            'pVal' = emb_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(emb_qval_hmC$pvalues), 
+                            'qVal' = emb_qval_hmC$qvalues)
+
+  emb_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactEmbryonal"], 
+                            'pVal' = emb_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(emb_qval_mC$pvalues), 
+                            'qVal' = emb_qval_mC$qvalues)  
+  emb_hmC_results$sig <- as.factor(ifelse(emb_hmC_results$qVal < 0.05, 1, 0))
+  emb_mC_results$sig <- as.factor(ifelse(emb_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  emb_hmC_model_res[[i]] <- emb_hmC_results
+  emb_mC_model_res[[i]] <- emb_mC_results
+  
+  # Put into one data frame
+  epn_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactEpendymoma"], 
+                            'pVal' = epn_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(epn_qval_hmC$pvalues), 
+                            'qVal' = epn_qval_hmC$qvalues)
+
+  epn_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactEpendymoma"], 
+                            'pVal' = epn_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(epn_qval_mC$pvalues), 
+                            'qVal' = epn_qval_mC$qvalues)  
+  epn_hmC_results$sig <- as.factor(ifelse(epn_hmC_results$qVal < 0.05, 1, 0))
+  epn_mC_results$sig <- as.factor(ifelse(epn_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  epn_hmC_model_res[[i]] <- epn_hmC_results
+  epn_mC_model_res[[i]] <- epn_mC_results
+  
+  # Put into one data frame
+  gnn_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactGNN"], 
+                            'pVal' = gnn_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(gnn_qval_hmC$pvalues), 
+                            'qVal' = gnn_qval_hmC$qvalues)
+
+  gnn_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactGNN"], 
+                            'pVal' = gnn_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(gnn_qval_mC$pvalues), 
+                            'qVal' = gnn_qval_mC$qvalues)  
+  gnn_hmC_results$sig <- as.factor(ifelse(gnn_hmC_results$qVal < 0.05, 1, 0))
+  gnn_mC_results$sig <- as.factor(ifelse(gnn_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  gnn_hmC_model_res[[i]] <- gnn_hmC_results
+  gnn_mC_model_res[[i]] <- gnn_mC_results
+}
+```
+
+```{r}
+tumortypes <- c("Astrocytoma", "Embryonal", "Ependymoma", "GNN")
+
+XX <- model.matrix(~tumortype_refact + Sex + Age_at_Diagnosis + purity, data = meta_reord)
+
+for(i in tumortypes){
+  # Run limma
+  limma_hmC <- eBayes(lmFit(hmC, XX))
+  limma_mC <- eBayes(lmFit(mC, XX))
+  
+  # Adjust pvalues
+  atc_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactAstrocytoma"])
+  atc_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactAstrocytoma"])
+  
+  emb_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactEmbryonal"])
+  emb_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactEmbryonal"])
+  
+  epn_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactEpendymoma"])
+  epn_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactEpendymoma"])
+  
+  gnn_qval_hmC <- qvalue(limma_hmC$p.value[,"tumortype_refactGNN"])
+  gnn_qval_mC <- qvalue(limma_mC$p.value[,"tumortype_refactGNN"])
+  
+    # Put into one data frame
+  atc_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactAstrocytoma"], 
+                            'pVal' = atc_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(atc_qval_hmC$pvalues), 
+                            'qVal' = atc_qval_hmC$qvalues)
+
+  atc_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactAstrocytoma"], 
+                            'pVal' = atc_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(atc_qval_mC$pvalues), 
+                            'qVal' = atc_qval_mC$qvalues)  
+  atc_hmC_results$sig <- as.factor(ifelse(atc_hmC_results$qVal < 0.05, 1, 0))
+  atc_mC_results$sig <- as.factor(ifelse(atc_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  atc_hmC_model_res[[14]] <- atc_hmC_results
+  atc_mC_model_res[[14]] <- atc_mC_results
+  
+  # Put into one data frame
+  emb_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactEmbryonal"], 
+                            'pVal' = emb_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(emb_qval_hmC$pvalues), 
+                            'qVal' = emb_qval_hmC$qvalues)
+
+  emb_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactEmbryonal"], 
+                            'pVal' = emb_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(emb_qval_mC$pvalues), 
+                            'qVal' = emb_qval_mC$qvalues)  
+  emb_hmC_results$sig <- as.factor(ifelse(emb_hmC_results$qVal < 0.05, 1, 0))
+  emb_mC_results$sig <- as.factor(ifelse(emb_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  emb_hmC_model_res[[14]] <- emb_hmC_results
+  emb_mC_model_res[[14]] <- emb_mC_results
+  
+  # Put into one data frame
+  epn_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactEpendymoma"], 
+                            'pVal' = epn_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(epn_qval_hmC$pvalues), 
+                            'qVal' = epn_qval_hmC$qvalues)
+
+  epn_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactEpendymoma"], 
+                            'pVal' = epn_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(epn_qval_mC$pvalues), 
+                            'qVal' = epn_qval_mC$qvalues)  
+  epn_hmC_results$sig <- as.factor(ifelse(epn_hmC_results$qVal < 0.05, 1, 0))
+  epn_mC_results$sig <- as.factor(ifelse(epn_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  epn_hmC_model_res[[14]] <- epn_hmC_results
+  epn_mC_model_res[[14]] <- epn_mC_results
+  
+  # Put into one data frame
+  gnn_hmC_results <- data.frame('beta' = limma_hmC$coefficients[,"tumortype_refactGNN"], 
+                            'pVal' = gnn_qval_hmC$pvalues, 
+                            'log10.pVal' = -log10(gnn_qval_hmC$pvalues), 
+                            'qVal' = gnn_qval_hmC$qvalues)
+
+  gnn_mC_results <- data.frame('beta' = limma_mC$coefficients[,"tumortype_refactGNN"], 
+                            'pVal' = gnn_qval_mC$pvalues, 
+                            'log10.pVal' = -log10(gnn_qval_mC$pvalues), 
+                            'qVal' = gnn_qval_mC$qvalues)  
+  gnn_hmC_results$sig <- as.factor(ifelse(gnn_hmC_results$qVal < 0.05, 1, 0))
+  gnn_mC_results$sig <- as.factor(ifelse(gnn_mC_results$qVal < 0.05, 1, 0))
+  
+  # Put into list
+  gnn_hmC_model_res[[14]] <- gnn_hmC_results
+  gnn_mC_model_res[[14]] <- gnn_mC_results
+}
+```
+
+```{r}
+names(atc_hmC_model_res)[14] <- "Unadj"
+names(atc_mC_model_res)[14] <- "Unadj"
+
+names(emb_hmC_model_res)[14] <- "Unadj"
+names(emb_mC_model_res)[14] <- "Unadj"
+
+names(epn_hmC_model_res)[14] <- "Unadj"
+names(epn_mC_model_res)[14] <- "Unadj"
+
+names(gnn_hmC_model_res)[14] <- "Unadj"
+names(gnn_mC_model_res)[14] <- "Unadj"
+```
+
+```{r}
+# Save 
+save(list= c("atc_hmC_model_res", "atc_mC_model_res",
+             "emb_hmC_model_res", "emb_mC_model_res",
+             "epn_hmC_model_res", "epn_mC_model_res",
+             "gnn_hmC_model_res", "gnn_mC_model_res"), 
+     file = "~/OneDrive - Dartmouth College/PCNS_Integrated/Results/UpdatedWHO2021/DNAm/EWAS/TTvsNT_EWAS_UnadjAdj_allprogct_inclpurity_AllModels_121822.rdata")
+```
+
+
+```{r}
+model_list2 <- names(atc_hmC_model_res)
+
+# Get # of dmCpGs
+atc_dmcpg_res <- as.data.frame(matrix(nrow = 14, ncol = 2))
+rownames(atc_dmcpg_res) <- model_list2
+
+for(i in model_list2){
+  df <- atc_hmC_model_res[[i]]
+  df2 <- atc_mC_model_res[[i]]
+  
+  atc_dmcpg_res[i, ] <- c(nrow(df[df$sig %in% "1", ]), 
+                      nrow(df2[df2$sig %in% "1", ]))
+}
+
+colnames(atc_dmcpg_res) <- c("hmC", "mC")
+
+# Get # of dmCpGs
+emb_dmcpg_res <- as.data.frame(matrix(nrow = 14, ncol = 2))
+rownames(emb_dmcpg_res) <- model_list2
+
+for(i in model_list2){
+  df <- emb_hmC_model_res[[i]]
+  df2 <- emb_mC_model_res[[i]]
+  
+  emb_dmcpg_res[i, ] <- c(nrow(df[df$sig %in% "1", ]), 
+                      nrow(df2[df2$sig %in% "1", ]))
+}
+
+colnames(emb_dmcpg_res) <- c("hmC", "mC")
+
+# Get # of dmCpGs
+epn_dmcpg_res <- as.data.frame(matrix(nrow = 14, ncol = 2))
+rownames(epn_dmcpg_res) <- model_list2
+
+for(i in model_list2){
+  df <- epn_hmC_model_res[[i]]
+  df2 <- epn_mC_model_res[[i]]
+  
+  epn_dmcpg_res[i, ] <- c(nrow(df[df$sig %in% "1", ]), 
+                      nrow(df2[df2$sig %in% "1", ]))
+}
+
+colnames(epn_dmcpg_res) <- c("hmC", "mC")
+
+# Get # of dmCpGs
+gnn_dmcpg_res <- as.data.frame(matrix(nrow = 14, ncol = 2))
+rownames(gnn_dmcpg_res) <- model_list2
+
+for(i in model_list2){
+  df <- gnn_hmC_model_res[[i]]
+  df2 <- gnn_mC_model_res[[i]]
+  
+  gnn_dmcpg_res[i, ] <- c(nrow(df[df$sig %in% "1", ]), 
+                      nrow(df2[df2$sig %in% "1", ]))
+}
+
+colnames(gnn_dmcpg_res) <- c("hmC", "mC")
+```
+
+```{r}
+atc_dmcpg_res$tumortype <- rep("ATC", 14)
+emb_dmcpg_res$tumortype <- rep("EMB", 14)
+epn_dmcpg_res$tumortype <- rep("EPN", 14)
+gnn_dmcpg_res$tumortype <- rep("GNN", 14)
+
+atc_dmcpg_res$model <- rownames(atc_dmcpg_res)
+emb_dmcpg_res$model <- rownames(emb_dmcpg_res)
+epn_dmcpg_res$model <- rownames(epn_dmcpg_res)
+gnn_dmcpg_res$model <- rownames(gnn_dmcpg_res)
+
+# Put all into one
+dmcpg_res_full <- rbind(atc_dmcpg_res, 
+                        emb_dmcpg_res, 
+                        epn_dmcpg_res, 
+                        gnn_dmcpg_res)
+
+dmcpg_melt <- melt(dmcpg_res_full, id = c("model", "tumortype"))
+
+# Reorder
+dmcpg_melt$model <- factor(dmcpg_melt$model, levels = c("Unadj", "NEU", 
+                "RGC", 
+                "NSC", 
+                "OPC", 
+                "UBC",
+                "NEU + RGC", 
+                "NEU + NSC", 
+                "NEU + OPC", 
+                "NEU + UBC", 
+                "NEU + NSC + RGC", 
+                "NEU + NSC + OPC",
+                "NEU + NSC + UBC",
+                "NEU + OPC + RGC + NSC + UBC"))
+```
+
+
+```{r}
+colSums(dmcpg_res_full[dmcpg_res_full$model %in% "NEU + OPC + RGC + NSC + UBC",1:2])
+```
+
+
+```{r}
+plot <- ggplot(dmcpg_melt, aes(x = model, y = value, fill = tumortype)) + 
+  geom_bar(stat = "identity", position= "dodge") + 
+  scale_fill_nejm() +
+  labs(x = "Model", y = "# of differentially \n(hydroxy)methylated CpGs", fill = "Tumor type") +
+    theme_bw() +
+    theme(panel.grid = element_blank(), 
+        panel.border = element_blank(), 
+        axis.line = element_line(color = "black", size = 0.3), 
+        axis.title = element_text(color = "black", size = 12), 
+        axis.text = element_text(color = "black", size = 11), 
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        strip.text = element_text(color = "black", size = 11, face = "bold"), 
+        strip.background = element_blank(),
+        legend.position = "none") +
+  facet_wrap(tumortype~variable, scales = "free", ncol = 4)
+
+plot
+
+ppi = 200
+png("~/OneDrive - Dartmouth College/PCNS_Integrated/Figures/UpdatedWHO2021/DNAm/EWAS/TTVsNT_AdjustedForVariousCTs_purityincl_Barplot_Final.png", 
+    height = 8*ppi, width = 13*ppi, res = ppi)
+plot
+dev.off()
+```
